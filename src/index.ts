@@ -10,8 +10,10 @@ function main() {
     seal.ext.registerStringConfig(ext, "协议端 token", "");
     seal.ext.registerStringConfig(ext, "获取文件指令", "骰娘请给我");
     seal.ext.registerStringConfig(ext, "发送文案", "正在为您发送文件：")
-    seal.ext.registerTemplateConfig(ext, "文件列表", [`{"文件名":"coc角色卡","文件路径":"/home/dice/files/coc角色卡.xlsx"}`])
-    seal.ext.registerBoolConfig(ext, "是否允许群聊使用", true)
+    seal.ext.registerTemplateConfig(ext, "文件列表", [`{"文件名":"coc角色卡","文件路径":"/home/dice/files/coc角色卡.xlsx"}`],"此处配置项格式请严格按照示例书写，路径为协议端所在设备的绝对路径。")
+    seal.ext.registerBoolConfig(ext, "是否允许群聊使用", true,"如果关闭，群聊中无法使用文件助手")
+    seal.ext.registerBoolConfig(ext, "是否允许检测群文件列表", true,"如果开启，骰娘会在每次启动时检测群文件列表。关闭后骰娘跳过检查，可能会导致重复上传")
+    seal.ext.registerBoolConfig(ext, "检测到群文件已存在时是否覆盖", true, "如果群文件已存在目标文件，true则在上传后删除旧的文件,否则提示文件已存在。仅在开启检测群文件列表时生效。")
   }
 
   // 编写指令
@@ -42,46 +44,76 @@ function main() {
   // 注册命令
   ext.cmdMap['文件助手'] = cmdFileHelper;
 
-  ext.onNotCommandReceived = (ctx, msg) => {
+  ext.onNotCommandReceived = async (ctx, msg) => {
+    // 早期返回：不是目标指令直接退出
     const cmdPrefix = seal.ext.getStringConfig(ext, '获取文件指令');
-    // 去除空格
     const message = msg.message.replace(/\s+/g, '');
-    if (!message.startsWith(cmdPrefix)){
+    if (!message.startsWith(cmdPrefix)) {
       return;
     }
 
+    // 获取配置信息
     const protocolUrl = seal.ext.getStringConfig(ext, '协议端 http 地址');
     const token = seal.ext.getStringConfig(ext, '协议端 token');
     const allowGroup = seal.ext.getBoolConfig(ext, '是否允许群聊使用');
+    const checkFileList = seal.ext.getBoolConfig(ext, '是否允许检测群文件列表');
+    const overwriteExisting = seal.ext.getBoolConfig(ext, '检测到群文件已存在时是否覆盖');
     const fileListJsonArray = seal.ext.getTemplateConfig(ext, '文件列表');
+    const sendMessage = seal.ext.getStringConfig(ext, '发送文案');
 
+    // 遍历文件列表查找匹配项
     for (let i = 0; i < fileListJsonArray.length; i++) {
       try {
-        // 修复：使用正确的对象属性访问方式
         const fileInfo = JSON.parse(fileListJsonArray[i]);
 
-        // 修复：将get()方法改为正确的对象属性访问
-        if (message === cmdPrefix + fileInfo["文件名"]) {
-          if (ctx.isPrivate) {
-            api.uploadPrivateFile(protocolUrl, ctx.player.userId.match(/\d+/)[0], fileInfo["文件路径"], token)
-          } else {
-            if (!allowGroup) {
-              seal.replyToSender(ctx, msg, `骰主已禁用群聊使用，请在私聊中使用。`)
-              return;
-            }
-            api.uploadGroupFile(protocolUrl, ctx.group.groupId.match(/\d+/)[0], fileInfo["文件路径"], token)
-          }
-          // 找到匹配的文件后发送确认消息
-          seal.replyToSender(ctx, msg, `${seal.ext.getStringConfig(ext, '发送文案')}${fileInfo["文件名"]}`);
+        // 不是目标文件则继续下一个
+        if (message !== cmdPrefix + fileInfo["文件名"]) {
+          continue;
+        }
+
+        // 私聊处理
+        if (ctx.isPrivate) {
+          seal.replyToSender(ctx, msg, `${sendMessage}${fileInfo["文件名"]}`);
+          await api.uploadPrivateFile(protocolUrl, ctx.player.userId.match(/\d+/)[0], fileInfo["文件路径"], token);
           return;
         }
+
+        // 群聊处理 - 检查是否允许群聊使用
+        if (!allowGroup) {
+          seal.replyToSender(ctx, msg, `骰主已禁用群聊使用，请在私聊中使用。`);
+          return;
+        }
+
+        // 群聊处理 - 不检查文件列表直接上传
+        if (!checkFileList) {
+          seal.replyToSender(ctx, msg, `${sendMessage}${fileInfo["文件名"]}`);
+          await api.uploadGroupFile(protocolUrl, ctx.group.groupId.match(/\d+/)[0], fileInfo["文件路径"], token);
+          return;
+        }
+
+        // 群聊处理 - 检查文件列表并处理
+        const groupId = ctx.group.groupId.match(/\d+/)[0];
+        const botId = ctx.endPoint.userId.match(/\d+/)[0];
+        const is_exist = await api.checkAndDealGroupFile(protocolUrl, groupId, botId, fileInfo["文件路径"], token, overwriteExisting);
+
+        // 根据处理结果发送不同回复
+        if (is_exist && overwriteExisting) {
+          seal.replyToSender(ctx, msg, `${sendMessage}${fileInfo["文件名"]}(文件已存在，已删除旧文件)。`);
+        } else if (is_exist) {
+          seal.replyToSender(ctx, msg, `文件：“${fileInfo["文件名"]}”已存在不再重复上传`);
+        } else {
+          seal.replyToSender(ctx, msg, `${sendMessage}${fileInfo["文件名"]}`);
+        }
+        return;
+
       } catch (error) {
         console.error(`解析文件配置出错 (索引 ${i})`, error);
         seal.replyToSender(ctx, msg, `文件配置有误，请联系骰主检查`);
+        return;
       }
     }
 
-    // 如果没有找到匹配的文件
+    // 未找到匹配的文件
     seal.replyToSender(ctx, msg, `未找到指定的文件，请检查文件名是否正确`);
   }
 }
