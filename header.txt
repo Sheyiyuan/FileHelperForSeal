@@ -6,5 +6,5 @@
 // @timestamp    1762321695
 // @license      MIT
 // @homepageURL  https://github.com/Sheyiyuan/FileHelperForSeal
-// @@updateURL   https://github.com/Sheyiyuan/FileHelperForSeal/releases/latest/download/default.js
+// @updateUrl   https://github.com/Sheyiyuan/FileHelperForSeal/releases/latest/download/default.js
 // ==/UserScript==
