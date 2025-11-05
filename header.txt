@@ -1,0 +1,9 @@
+// ==UserScript==
+// @name         文件助手
+// @author       Sheyiyuan
+// @version      1.0.0
+// @description  让骰娘给你发送文件，在配置项中设置协议端并按照示例配置设置文件列表。
+// @timestamp    1762321695
+// @license      MIT
+// @homepageURL  https://github.com/Sheyiyuan/FileHelperForSeal
+// ==/UserScript==
