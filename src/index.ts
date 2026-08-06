@@ -10,7 +10,7 @@ function main() {
     seal.ext.registerStringConfig(ext, "协议端 token", "");
     seal.ext.registerStringConfig(ext, "获取文件指令", "骰娘请给我");
     seal.ext.registerStringConfig(ext, "发送文案", "正在为您发送文件：")
-    seal.ext.registerTemplateConfig(ext, "文件列表", [`{"文件名":"coc角色卡","文件路径":"/home/dice/files/coc角色卡.xlsx"}`],"此处配置项格式请严格按照示例书写，路径为协议端所在设备的绝对路径。")
+    seal.ext.registerTemplateConfig(ext, "文件列表", [`{"文件名":"coc角色卡","文件路径":"/home/dice/files/coc角色卡.xlsx"}`], "此处配置项格式请严格按照示例书写，路径为协议端所在设备的绝对路径。Windows 上请把反斜杠「\\」修改为正斜杠「/」")
     seal.ext.registerBoolConfig(ext, "是否允许群聊使用", true,"如果关闭，群聊中无法使用文件助手")
     seal.ext.registerBoolConfig(ext, "是否允许检测群文件列表", true,"如果开启，骰娘会在每次启动时检测群文件列表。关闭后骰娘跳过检查，可能会导致重复上传")
     seal.ext.registerBoolConfig(ext, "检测到群文件已存在时是否覆盖", true, "如果群文件已存在目标文件，true则在上传后删除旧的文件,否则提示文件已存在。仅在开启检测群文件列表时生效。")
